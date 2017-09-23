@@ -31,19 +31,19 @@ class MamboDelegate(DefaultDelegate):
             self.mambo._update_sensors(data, ack=True)
         elif channel == 'NO_ACK_DRONE_DATA':
             # data from drone (including battery and others), no ack
-            print "drone data - no ack needed"
+            self.mambo._debug_print("drone data - no ack needed", 2)
             self.mambo._update_sensors(data, ack=False)
         elif channel == 'ACK_COMMAND_SENT':
             # ack 0b channel, SEND_WITH_ACK
-            print "Ack!  command received!"
+            self.mambo._debug_print("Ack!  command received!", 2)
             self.mambo._set_command_received('SEND_WITH_ACK', True)
         elif channel == 'ACK_HIGH_PRIORITY':
             # ack 0c channel, SEND_HIGH_PRIORITY
-            print "Ack!  high priority received"
+            self.mambo._debug_print("Ack!  high priority received", 2)
             self.mambo._set_command_received('SEND_HIGH_PRIORITY', True)
         else:
-            print "unknown channel %s sending data " % channel
-            print cHandle
+            self.mambo._debug_print("unknown channel %s sending data " % channel, 10)
+            self.mambo._debug_print(cHandle)
             
 
 class MamboSensors:
@@ -99,7 +99,7 @@ class MamboSensors:
         elif (name == "GunState_state"):
             self.gun_state = value
         else:
-            print "new sensor - add me to the struct but saving in the dict for now"
+            #print "new sensor - add me to the struct but saving in the dict for now"
             self.unknown_sensors[name] = value
 
     def __str__(self):
@@ -116,14 +116,22 @@ class MamboSensors:
         return my_str
 
 class Mambo:
-    def __init__(self, address):
+    def __init__(self, address, debug_level=None):
         """
         Initialize with its address - if you don't know the address, call findMambo
-        and that will discover it for you
+        and that will discover it for you.
+
+        You can specify a debugging level for printing output.  debug level = 0 will print everything,
+        1 fewer things, etc.  Each statement has a priority associated with it.  None (default) means print nothing.
+        Internally, 10 is a high priority command to see whereas 1 is simply debugging info.
+
         :param address: unique address for this mambo
+        :param debugLevel: use to control the amount of print statements.  Valid choices are None (default) or any integer >= 0
+
         """
         self.address = address
         self.drone = Peripheral()
+        self.debug_level = debug_level
 
         # the following UUID segments come from the Mambo and from the documenation at
         # http://forum.developer.parrot.com/t/minidrone-characteristics-uuid/4686/3
@@ -171,11 +179,30 @@ class Mambo:
             '1c' : 'ACK_HIGH_PRIORITY',     # ack 0c channel, SEND_HIGH_PRIORITY
             }
 
+        # these are the FTP incoming and outcoming channels
+        # the handling characteristic seems to be the one to send commands to (per the SDK)
+        # information gained from reading ARUTILS_BLEFtp.m in the SDK
+        self.characteristic_ftp_uuids = {
+            '22' : 'NORMAL_FTP_TRANSFERRING',
+            '23' : 'NORMAL_FTP_GETTING',
+            '24' : 'NORMAL_FTP_HANDLING',
+            '52' : 'UPDATE_FTP_TRANSFERRING',
+            '53': 'UPDATE_FTP_GETTING',
+            '54': 'UPDATE_FTP_HANDLING',
+        }
+
+        # FTP commands (obtained via ARUTILS_BLEFtp.m in the SDK)
+        self.ftp_commands = {
+            "list" : "LIS",
+            "get" : "GET"
+        }
+
         # need to save for communication (but they are initialized in connect)
         self.services = None
         self.send_characteristics = dict()
         self.receive_characteristics = dict()
         self.handshake_characteristics = dict()
+        self.ftp_characteristics = dict()
 
         # parse the command files from XML (so we don't have to store ids and can use names
         # for readability and portability!)
@@ -206,6 +233,35 @@ class Mambo:
         # maximum number of times to try a packet before assuming it failed
         self.max_packet_retries = 3
 
+    def _debug_print(self, print_str, level):
+        """
+        Internal method to only print based on the debugging level
+
+        :param print_str: string to print
+        :param level: level of debugging that this statement is
+        :return:
+        """
+        # special case: do not print anything
+        if (self.debug_level is None):
+            return
+
+        # handle null cases
+        if (print_str is None):
+            print_str = ""
+
+        # prints the messages in color according to their level
+        if (level >= self.debug_level):
+            if (level >= 10):
+                print('\033[38;5;196m' + print_str + '\033[0m')
+            elif (level >= 9):
+                print('\033[38;5;202m' + print_str + '\033[0m')
+            elif (level >= 5):
+                print('\033[38;5;22m' + print_str + '\033[0m')
+            elif (level >= 2):
+                print('\033[38;5;33m' + print_str + '\033[0m')
+            else:
+                print print_str
+
     def connect(self, num_retries):
         """
         Connects to the drone and re-tries in case of failure the specified number of times
@@ -221,7 +277,7 @@ class Mambo:
                 self._connect()
                 return True
             except BTLEException:
-                print "retrying connections"
+                self._debug_print("retrying connections", 10)
                 try_num += 1
 
         # if we fell through the while loop, it failed to connect
@@ -234,9 +290,9 @@ class Mambo:
 
         :return: throws an error if the drone connection failed.  Returns void if nothing failed.
         """
-        print "trying to connect to the mambo at address %s" % self.address
+        self._debug_print("trying to connect to the mambo at address %s" % self.address, 10)
         self.drone.connect(self.address, "random")
-        print "connected!  Asking for services and characteristics"
+        self._debug_print("connected!  Asking for services and characteristics", 5)
 
         # re-try until all services have been found
         allServicesFound = False
@@ -269,6 +325,21 @@ class Mambo:
                         if hex_str in self.characteristic_send_uuids:
                             self.send_characteristics[self.characteristic_send_uuids[hex_str]] = c
 
+
+                elif (self.service_uuids[hex_str] == 'UPDATE_BLE_FTP'):
+                    # store the FTP info
+                    for c in s.getCharacteristics():
+                        hex_str = self._get_byte_str_from_uuid(c.uuid, 4, 4)
+                        if hex_str in self.characteristic_ftp_uuids:
+                            self.ftp_characteristics[self.characteristic_ftp_uuids[hex_str]] = c
+
+                elif (self.service_uuids[hex_str] == 'NORMAL_BLE_FTP_SERVICE'):
+                    # store the FTP info
+                    for c in s.getCharacteristics():
+                        hex_str = self._get_byte_str_from_uuid(c.uuid, 4, 4)
+                        if hex_str in self.characteristic_ftp_uuids:
+                            self.ftp_characteristics[self.characteristic_ftp_uuids[hex_str]] = c
+
                 # need to register for notifications and write 0100 to the right handles
                 # this is sort of magic (not in the docs!) but it shows up on the forum here
                 # http://forum.developer.parrot.com/t/minimal-ble-commands-to-send-for-take-off/1686/2
@@ -283,17 +354,22 @@ class Mambo:
             allServicesFound = True
             for r_id in self.characteristic_receive_uuids.itervalues():
                 if r_id not in self.receive_characteristics:
-                    print "setting to false in receive on %s" % r_id
+                    self._debug_print("setting to false in receive on %s" % r_id, 5)
                     allServicesFound = False
 
             for s_id in self.characteristic_send_uuids.itervalues():
                 if s_id not in self.send_characteristics:
-                    print "setting to false in send"
+                    self._debug_print("setting to false in send", 5)
+                    allServicesFound = False
+
+            for f_id in self.characteristic_ftp_uuids.itervalues():
+                if f_id not in self.ftp_characteristics:
+                    self._debug_print("setting to false in ftp", 5)
                     allServicesFound = False
 
             # and ensure all handshake characteristics were found
             if len(self.handshake_characteristics.keys()) != 10:
-                print "setting to false in len"
+                self._debug_print("setting to false in len", 5)
                 allServicesFound = False
 
 
@@ -312,7 +388,7 @@ class Mambo:
 
         :return: nothing
         """
-        print "magic handshake to make the drone listen to our commands"
+        self._debug_print("magic handshake to make the drone listen to our commands", 2)
         
         # Note this code snippet below more or less came from the python example posted to that forum (I adapted it to my interface)
         for c in self.handshake_characteristics.itervalues():
@@ -384,15 +460,16 @@ class Mambo:
                     sensor_data = sensor_data[0]
                 else:
                     sensor_data = None
-                    print "Write the parser for this value"
+                    self._debug_print("Write the parser for this value", 10)
+                    self._debug_print(data_size, 10)
 
-                print "updating the sensor!"
+                self._debug_print("updating the sensor!", 1)
                 self.sensors.update(name, sensor_data, self.sensor_tuple_cache)
         else:
-            print header_tuple
-            print "Error parsing sensor information!"
+            self._debug_print(header_tuple, 10)
+            self._debug_print("Error parsing sensor information!", 10)
 
-        print self.sensors
+        self._debug_print(self.sensors, 1)
 
         if (ack):
             self._ack_packet(header_tuple[1])
@@ -413,11 +490,11 @@ class Mambo:
             return self.sensor_tuple_cache[(project_id, myclass_id, cmd_id, extra_id)]
 
 
-        print "looking for project id %d in minidrone" % project_id
+        self._debug_print("looking for project id %d in minidrone" % project_id, 1)
         if (project_id == int(self.minidrone_commands.project['id'])):
-            print "looking for myclass_id %d" % myclass_id
+            self._debug_print("looking for myclass_id %d" % myclass_id, 1)
             for c in self.minidrone_commands.project.myclass:
-                print "looking for cmd_id %d" % cmd_id
+                self._debug_print("looking for cmd_id %d" % cmd_id, 1)
                 if int(c['id']) == myclass_id:
                     for cmd_child in c.cmd:
                         if int(cmd_child['id']) == cmd_id:
@@ -434,10 +511,10 @@ class Mambo:
                                     if (data_size == 'enum'):
                                         enum_names = list()
                                         for eitem in arg_child.enum:
-                                            print eitem
+                                            self._debug_print(eitem, 1)
                                             enum_names.append(eitem['name'])
                                         self.sensor_tuple_cache[sensor_name, "enum"] = enum_names
-                                        print "added to sensor cache %s" % enum_names
+                                        self._debug_print("added to sensor cache %s" % enum_names, 1)
 
                                     # save the name and sizes to a list
                                     sensor_names.append(sensor_name)
@@ -454,11 +531,11 @@ class Mambo:
                         
 
         # need to look in the common.xml file instead
-        print "looking for project id %d in common" % project_id
+        self._debug_print("looking for project id %d in common" % project_id, 1)
         if (project_id == int(self.common_commands.project['id'])):
-            print "looking for myclass_id %d" % myclass_id
+            self._debug_print("looking for myclass_id %d" % myclass_id, 1)
             for c in self.common_commands.project.myclass:
-                print "looking for cmd_id %d" % cmd_id
+                self._debug_print("looking for cmd_id %d" % cmd_id, 1)
                 if int(c['id']) == myclass_id:
                     for cmd_child in c.cmd:
                         if int(cmd_child['id']) == cmd_id:
@@ -475,10 +552,10 @@ class Mambo:
                                     if (data_size == 'enum'):
                                         enum_names = list()
                                         for eitem in arg_child.enum:
-                                            print eitem
+                                            self._debug_print(eitem, 1)
                                             enum_names.append(eitem['name'])
                                         self.sensor_tuple_cache[sensor_name, "enum"] = enum_names
-                                        print "added to sensor cache %s" % enum_names
+                                        self._debug_print("added to sensor cache %s" % enum_names, 1)
 
                                     # save the name and sizes to a list
                                     sensor_names.append(sensor_name)
@@ -498,6 +575,28 @@ class Mambo:
         self.sensor_tuple_cache[(project_id, myclass_id, cmd_id, extra_id)] = (None, None)
         return (None, None)
 
+    def get_camera_files(self):
+        """
+        Get the listing of files from the ftp on the drone
+
+        :return:
+        """
+        BLE_PACKET_MAX_SIZE=132
+
+        num_zeros = BLE_PACKET_MAX_SIZE-len(self.ftp_commands["list"])
+        my_zeros = "\0" * num_zeros
+        print len(my_zeros)
+        print self.ftp_commands["list"]
+        fmt = format("<3s%dss" % num_zeros)
+        print fmt
+
+        packet = struct.pack(fmt, self.ftp_commands["list"], my_zeros, "/.")
+        print len(packet)
+        print packet
+                
+        self.ftp_characteristics['NORMAL_FTP_HANDLING'].write(packet)
+
+
     def _ack_packet(self, packet_id):
         """
         Ack the packet id specified by the argument on the ACK_COMMAND channel
@@ -505,12 +604,12 @@ class Mambo:
         :param packet_id: the packet id to ack
         :return: nothing
         """
-        print "ack last packet on the ACK_COMMAND channel"
+        self._debug_print("ack last packet on the ACK_COMMAND channel", 1)
         self.characteristic_send_counter['ACK_COMMAND'] = (self.characteristic_send_counter['ACK_COMMAND'] + 1) % 256
         packet = struct.pack("<BBB", self.data_types['ACK'], self.characteristic_send_counter['ACK_COMMAND'],
                              packet_id)
-        print "sending packet %d %d %d" % (self.data_types['ACK'], self.characteristic_send_counter['ACK_COMMAND'],
-                                           packet_id)
+        self._debug_print("sending packet %d %d %d" % (self.data_types['ACK'], self.characteristic_send_counter['ACK_COMMAND'],
+                                           packet_id), 1)
 
         self.send_characteristics['ACK_COMMAND'].write(packet)
 
@@ -668,12 +767,12 @@ class Mambo:
         try_num = 0
         self._set_command_received('SEND_WITH_ACK', False)
         while (try_num < self.max_packet_retries and not self.command_received['SEND_WITH_ACK']):
-            print "sending command packet on try %d" % try_num
+            self._debug_print("sending command packet on try %d" % try_num, 2)
             self.send_characteristics['SEND_WITH_ACK'].write(packet)
             try_num += 1
-            print "sleeping for a notification"
+            self._debug_print("sleeping for a notification", 2)
             notify = self.drone.waitForNotifications(1.0)
-            print "awake %s " % notify
+            self._debug_print("awake %s " % notify, 2)
 
         return self.command_received['SEND_WITH_ACK']
 
@@ -716,9 +815,8 @@ class Mambo:
                                  command_tuple[0], command_tuple[1], command_tuple[2], 0,
                                  enum_value)
         else:
-            print (self.data_types['DATA_WITH_ACK'], self.characteristic_send_counter['SEND_WITH_ACK'],
-                                 command_tuple[0], command_tuple[1], command_tuple[2], 0,
-                                 usb_id, enum_value)
+            self._debug_print(self.data_types['DATA_WITH_ACK'], self.characteristic_send_counter['SEND_WITH_ACK'],
+                              command_tuple[0], command_tuple[1], command_tuple[2], 0, usb_id, enum_value, 1)
             packet = struct.pack("<BBBBBBBI", self.data_types['DATA_WITH_ACK'], self.characteristic_send_counter['SEND_WITH_ACK'],
                                  command_tuple[0], command_tuple[1], command_tuple[2], 0,
                                  usb_id, enum_value)
@@ -733,7 +831,7 @@ class Mambo:
         :return: True if the command was sent and False otherwise
         """
         command_tuple = self._get_command_tuple("Piloting", "TakeOff")
-        print command_tuple
+        #print command_tuple
         return self._send_noparam_command_packet_ack(command_tuple)
 
     def safe_takeoff(self, timeout):
@@ -761,7 +859,7 @@ class Mambo:
         :return: True if the command was sent and False otherwise
         """
         command_tuple = self._get_command_tuple("Piloting", "Landing")
-        print command_tuple
+        #print command_tuple
         return self._send_noparam_command_packet_ack(command_tuple)
 
     def safe_land(self):
@@ -783,7 +881,7 @@ class Mambo:
         :return: True if the command was sent and False otherwise
         """
         command_tuple = self._get_command_tuple("Piloting", "FlatTrim")
-        print command_tuple
+        #print command_tuple
         return self._send_noparam_command_packet_ack(command_tuple)
 
 
@@ -796,8 +894,8 @@ class Mambo:
         :return: True if the command was sent and False otherwise
         """
         (command_tuple, enum_tuple) = self._get_command_tuple_with_enum("Animations", "Flip", direction)
-        print command_tuple
-        print enum_tuple
+        #print command_tuple
+        #print enum_tuple
 
         return self._send_enum_command_packet_ack(command_tuple, enum_tuple)
 
@@ -812,7 +910,7 @@ class Mambo:
         :return:
         """
         command_tuple = self._get_command_tuple("Animations", "Cap")
-        print command_tuple
+        #print command_tuple
         self.characteristic_send_counter['SEND_WITH_ACK'] = (
                                                             self.characteristic_send_counter['SEND_WITH_ACK'] + 1) % 256
         packet = struct.pack("<BBBBBBh", self.data_types['DATA_WITH_ACK'],
@@ -843,7 +941,7 @@ class Mambo:
         :return:
         """
         command_tuple = self._get_command_tuple("Piloting", "AutoTakeOffMode")
-        print command_tuple
+        #print command_tuple
         self.characteristic_send_counter['SEND_WITH_ACK'] = (
                                                             self.characteristic_send_counter['SEND_WITH_ACK'] + 1) % 256
         packet = struct.pack("<BBBBBBB", self.data_types['DATA_WITH_ACK'],
@@ -860,7 +958,7 @@ class Mambo:
         :return:
         """
         command_tuple = self._get_command_tuple("MediaRecord", "PictureV2")
-        print command_tuple
+        #print command_tuple
         return self._send_noparam_command_packet_ack(command_tuple)
 
 
@@ -872,7 +970,7 @@ class Mambo:
         :return: nothing but it will eventually fill the MamboSensors with all of the state variables as they arrive
         """
         command_tuple = self._get_command_tuple("Common", "AllStates")
-        print command_tuple
+        #print command_tuple
         return self._send_noparam_command_packet_ack(command_tuple)
 
     def _ensure_fly_command_in_range(self, value):
@@ -925,24 +1023,24 @@ class Mambo:
     def open_claw(self):
         """
         Open the claw
-        :return:
+        :return: nothing
         """
-        print "open claw"
+        #print "open claw"
         (command_tuple, enum_tuple) = self._get_command_tuple_with_enum("UsbAccessory", "ClawControl", "OPEN")
-        print command_tuple
-        print enum_tuple
+        #print command_tuple
+        #print enum_tuple
 
         return self._send_enum_command_packet_ack(command_tuple, enum_tuple, self.sensors.claw_id)
 
     def close_claw(self):
         """
         Open the claw
-        :return:
+        :return: nothing
         """
-        print "close claw"
+        #print "close claw"
         (command_tuple, enum_tuple) = self._get_command_tuple_with_enum("UsbAccessory", "ClawControl", "CLOSE")
-        print command_tuple
-        print enum_tuple
+        #print command_tuple
+        #print enum_tuple
 
         return self._send_enum_command_packet_ack(command_tuple, enum_tuple, self.sensors.claw_id)
 
@@ -950,12 +1048,12 @@ class Mambo:
         """
         Fire the gun (assumes it is attached)
 
-        :return:
+        :return: nothing
         """
-        print "firing gun"
+        #print "firing gun"
         (command_tuple, enum_tuple) = self._get_command_tuple_with_enum("UsbAccessory", "GunControl", "FIRE")
-        print command_tuple
-        print enum_tuple
+        #print command_tuple
+        #print enum_tuple
 
         return self._send_enum_command_packet_ack(command_tuple, enum_tuple, self.sensors.gun_id)
 
