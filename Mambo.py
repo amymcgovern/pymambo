@@ -17,12 +17,12 @@ class MamboDelegate(DefaultDelegate):
         DefaultDelegate.__init__(self)
         self.handle_map = handle_map
         self.mambo = mambo
-        print "initializing delegate"
+        self.mambo._debug_print("initializing notification delegate", 10)
 
     def handleNotification(self, cHandle, data):
-        print "handling notificiation from channel %d" % cHandle
-        print "handle map is %s " % self.handle_map[cHandle]
-        print "channel map is %s " % self.mambo.characteristic_receive_uuids[self.handle_map[cHandle]]
+        #print "handling notificiation from channel %d" % cHandle
+        #print "handle map is %s " % self.handle_map[cHandle]
+        #print "channel map is %s " % self.mambo.characteristic_receive_uuids[self.handle_map[cHandle]]
         #print "data is %s " % data
 
         channel = self.mambo.characteristic_receive_uuids[self.handle_map[cHandle]]
@@ -282,6 +282,33 @@ class Mambo:
 
         # if we fell through the while loop, it failed to connect
         return False
+
+
+    def _reconnect(self, num_retries):
+        """
+        Reconnect to the drone (assumed the BLE crashed)
+
+        :param: num_retries is the number of times to retry
+
+        :return: True if it succeeds and False otherwise
+        """
+        try_num = 1
+        success = False
+        while (try_num < num_retries and not success):
+            try:
+                self._debug_print("trying to re-connect to the mambo at address %s" % self.address, 10)
+                self.drone.connect(self.address, "random")
+                self._debug_print("connected!  Asking for services and characteristics", 5)
+                success = True
+            except BTLEException:
+                self._debug_print("retrying connections", 10)
+                try_num += 1
+
+        if (success):
+            # do the magic handshake
+            self._perform_handshake()
+
+        return success
         
     def _connect(self):
         """
@@ -466,7 +493,7 @@ class Mambo:
                 self._debug_print("updating the sensor!", 1)
                 self.sensors.update(name, sensor_data, self.sensor_tuple_cache)
         else:
-            self._debug_print(header_tuple, 10)
+            #print header_tuple
             self._debug_print("Error parsing sensor information!", 10)
 
         self._debug_print(self.sensors, 1)
@@ -611,7 +638,8 @@ class Mambo:
         self._debug_print("sending packet %d %d %d" % (self.data_types['ACK'], self.characteristic_send_counter['ACK_COMMAND'],
                                            packet_id), 1)
 
-        self.send_characteristics['ACK_COMMAND'].write(packet)
+        self._safe_ble_write(characteristic=self.send_characteristics['ACK_COMMAND'], packet=packet)
+        #self.send_characteristics['ACK_COMMAND'].write(packet)
 
 
 
@@ -702,8 +730,11 @@ class Mambo:
         :param cmd: command to execute (from XML file)
         :return:
         """
+        print "get command tuple with enum"
         # only search if it isn't already in the cache
         if (myclass, cmd, enum_name) in self.command_tuple_cache:
+            print "using the cache"
+            print self.command_tuple_cache[(myclass, cmd, enum_name)]
             return self.command_tuple_cache[(myclass, cmd, enum_name)]
 
         # run the search first in minidrone xml and then hit common if that failed
@@ -727,8 +758,9 @@ class Mambo:
                                         enum_id = e_idx
 
                                         # cache the result
-                                        self.command_tuple_cache[(myclass, cmd, enum_name)] = (project_id, class_id, cmd_id)
+                                        self.command_tuple_cache[(myclass, cmd, enum_name)] = ((project_id, class_id, cmd_id), enum_id)
 
+                                        print  ((project_id, class_id, cmd_id), enum_id)
                                         return ((project_id, class_id, cmd_id), enum_id)
 
         # common
@@ -752,9 +784,30 @@ class Mambo:
                                         enum_id = e_idx
 
                                         # cache the result
-                                        self.command_tuple_cache[(myclass, cmd, enum_name)] = (project_id, class_id, cmd_id)
+                                        self.command_tuple_cache[(myclass, cmd, enum_name)] = ((project_id, class_id, cmd_id), enum_id)
 
+                                        print ((project_id, class_id, cmd_id), enum_id)
                                         return ((project_id, class_id, cmd_id), enum_id)
+
+
+    def _safe_ble_write(self, characteristic, packet):
+        """
+        Write to the specified BLE characteristic but first ensure the connection is valid
+
+        :param characteristic:
+        :param packet:
+        :return:
+        """
+
+        success = False
+
+        while (not success):
+            try:
+                characteristic.write(packet)
+                success = True
+            except BTLEException:
+                self._debug_print("reconnecting to send packet", 10)
+                self._reconnect(3)
 
 
     def _send_command_packet_ack(self, packet):
@@ -768,11 +821,13 @@ class Mambo:
         self._set_command_received('SEND_WITH_ACK', False)
         while (try_num < self.max_packet_retries and not self.command_received['SEND_WITH_ACK']):
             self._debug_print("sending command packet on try %d" % try_num, 2)
-            self.send_characteristics['SEND_WITH_ACK'].write(packet)
+            self._safe_ble_write(characteristic=self.send_characteristics['SEND_WITH_ACK'], packet=packet)
+            #self.send_characteristics['SEND_WITH_ACK'].write(packet)
             try_num += 1
             self._debug_print("sleeping for a notification", 2)
-            notify = self.drone.waitForNotifications(1.0)
-            self._debug_print("awake %s " % notify, 2)
+            #notify = self.drone.waitForNotifications(1.0)
+            self.smart_sleep(0.5)
+            #self._debug_print("awake %s " % notify, 2)
 
         return self.command_received['SEND_WITH_ACK']
 
@@ -868,6 +923,7 @@ class Mambo:
         """
         
         while (self.sensors.flying_state != "landed"):
+            self._debug_print("trying to land", 10)
             self.smart_sleep(1)
             success = self.land()
         
@@ -933,7 +989,12 @@ class Mambo:
 
         start_time = time.time()
         while (time.time() - start_time < timeout):
-            notify = self.drone.waitForNotifications(0.1)
+            try:
+                notify = self.drone.waitForNotifications(0.1)
+            except:
+                self._debug_print("reconnecting to wait", 10)
+                self._reconnect(3)
+            
 
     def turn_on_auto_takeoff(self):
         """
@@ -1015,8 +1076,9 @@ class Mambo:
                                  self.characteristic_send_counter['SEND_NO_ACK'],
                                  command_tuple[0], command_tuple[1], command_tuple[2], 0,
                                  1, my_roll, my_pitch, my_yaw, my_vertical, 0)
-            
-            self.send_characteristics['SEND_NO_ACK'].write(packet)
+
+            self._safe_ble_write(characteristic=self.send_characteristics['SEND_NO_ACK'], packet=packet)
+            #self.send_characteristics['SEND_NO_ACK'].write(packet)
             notify = self.drone.waitForNotifications(0.1)
         
 
