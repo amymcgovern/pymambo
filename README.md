@@ -60,7 +60,7 @@ demoClaw shows you how to control the claw.  The gun can also be controlled thro
 Each of the commands available to control the mambo is listed below with its documentation.  The code is also well documented.  All of the functions preceeded with an underscore are intended to be internal functions are not listed below.
 
 * ```Mambo(address)``` create a mambo object with the specific harware address (found using findMambo)
-* ```connect(num_retries)``` connect to the Mambo's BLE services and characteristics.  This can take several seconds to ensure the connection is working.  You can specify a maximum number of re-tries.  Returns true if the connection suceeded or False otherwise.
+* ```connect(num_retries,debug_lebel)``` connect to the Mambo's BLE services and characteristics.  This can take several seconds to ensure the connection is working.  You can specify a maximum number of re-tries.  Returns true if the connection suceeded or False otherwise.  The debug_level can be used to control the amount of printouts from the Mambo.  Set to None (default) for no printouts and 0 for all, 10 for errors only.
 * ```disconnect``` disconnect from the BLE connection
 * ```takeoff()``` Sends a single takeoff command to the mambo.  This is not the recommended method.
 * ```safe_takeoff()``` This is the recommended method for takeoff.  It sends a command and then checks the sensors (via flying state) to ensure the mambo is actually taking off.  Then it waits until the mambo is flying or hovering to return.
