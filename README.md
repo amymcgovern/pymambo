@@ -10,7 +10,7 @@ This interface was developed to teach kids (K-12) STEM concepts (programming, ma
 This code was developed and tested on a Parrot Mambo (regular Mambo, without the FPV camera, we will work on that in the next update) and a Raspberry Pi 3 Model B.  It should work on any linux machine with BLE support.
 
 ### Software
-You will need python, pybluez, and untangle.  All of these are available for the Raspberry Pi 3.  To install these do the following:
+You will need python 2.7, pybluez, and untangle.  All of these are available for the Raspberry Pi 3.  To install these do the following:
 
 ```
 sudo apt-get update
