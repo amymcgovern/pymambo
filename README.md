@@ -84,9 +84,9 @@ Each of the commands available to control the mambo is listed below with its doc
 
 This is a work in progress.  Planned extensions include:
 
-* FPV camera.  I was developing this beofre the Mambo had a FPV camera.  Once I get a FPV, I will udpate the library.
+* FPV camera.  Update: the FPV camera works but the Raspberry Pi can't handle the framerate so the devleopment is only initial. 
 * Downloading pictures from the downward facing camera.  We can take photos from it (mambo.take_picture()) but I haven't figured out the protocol to download the photos remotely yet.  When I figure that out, I will update the code.
-* Sensors.  The mambo currently only sends a limited number of sensors back regularly (flying state and battery).  They have stated they will improve this in a future firmware release.  I will update the code to handle the new sensors (hopefully including altitude!) when the firmware is updated.
+* Sensors.  The mambo currently only sends a limited number of sensors back regularly (flying state and battery).  They have stated they will improve this in a future firmware release.  I will update the code to handle the new sensors (hopefully including altitude!) when the firmware is updated.  11/2: working on the wifi sensor data.
 
 ## Major updates:
 * 10/6/2017: General BLE stability improvements with the specific goal of flying multiple mambos at once.  Now if BLE disconnects, it catches that event and re-connects.  
