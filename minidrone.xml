@@ -102,6 +102,10 @@
 				</enum>
 			</arg>
 		</cmd>
+		<cmd name="TogglePilotingMode" id="8">
+			Command to toggle between "easy" piloting mode and "preferred" piloting mode.
+			This command only works while the drone is flying.
+		</cmd>
 	</myclass>
 	<myclass name="PilotingState" id="3">
 		Occasional information
@@ -192,6 +196,33 @@
 				</enum>
 				<enum name="gear_3">
 					Gear 3. High speed
+				</enum>
+			</arg>
+		</cmd>
+		<cmd name="PilotingModeChanged" id="6">
+			Event informing about the piloting mode.
+			<arg name="mode" type="enum">
+				<enum name="easy">
+					The flight envelope of Mambo FPV has been divided in three piloting modes.
+					The first one corresponds to the well-known flying mode currently used for
+					Mambo, which is based in an horizontal stabilisation (performed via the
+					vertical camera and the acceleration information) and a vertical acceleration
+					(by means of the ultrasound, the barometer and the vertical accelerometer) in
+					order for the drone to stay in fixed point position when no piloting commands
+					are sent by the user.
+				</enum>
+				<enum name="medium">
+					The second piloting mode consists of deactivating the horizontal stabilisation.
+					Thus, in this flying mode, when no piloting command is received, the drone will
+					try to stay at 0° tilt angle instead of responding to a 0 m/s horizontal speed
+					reference. This behaviour will result in a slight horizontal drift.
+				</enum>
+				<enum name="difficult">
+					The third piloting mode also adds the vertical stabilisation deactivation and,
+					therefore, a slight vertical drift. When flying in the third mode, a closed
+					loop height control is no longer performed in order for the drone to keep a
+					certain height and vertical speed. Instead, the vertical command coming from
+					the user will directly generate an open loop acceleration command.
 				</enum>
 			</arg>
 		</cmd>
@@ -337,11 +368,50 @@
 				title="Set banked turn mode"
 				desc="Set banked turn mode.\n
 				When banked turn mode is enabled, the drone will use yaw values from the piloting command to infer with roll and pitch on the drone when its horizontal speed is not null."
-				support="none"
+				support="090b:3.0.6"
 				result="The banked turn mode is enabled or disabled.\n
 				Then, event [BankedTurnMode](#2-9-2) is triggered."/>
 			<arg name="value" type="u8">
 				1 to enable, 0 to disable
+			</arg>
+		</cmd>
+		<cmd name="MaxThrottle" id="3">
+			This setting represents the vertical acceleration command that will be sent to the drone when piloting in gaz mode.
+			In this case, closed loop height control is no longer performed; an open loop vertical acceleration command is generated instead.
+			This command results from multiplying the user command coming from the joystick (float value between 0 and 1) by the MaxThrottle setting (also a value between 0 and 1) and by the gravity constant.
+			Thus, we obtain the corresponding value in [m/s²] that will then be mixed with the attitude commands and translated into rotation speeds.
+			As an example, if the value of this setting is 0.5, the maximal acceleration command that can be generated when the user command equals 1 is :
+			acc_cmd_max = 1 * 0.5 * 9.81 m/s² = 4.905 m/s².
+			<arg name="max" type="float">
+				Max throttle, between 0 and 1.
+			</arg>
+		</cmd>
+		<cmd name="PreferredPilotingMode" id="4">
+			The flight envelope of Mambo FPV has been divided in three piloting modes.
+			<arg name="mode" type="enum">
+				Piloting modes.
+				<enum name="easy">
+					The flight envelope of Mambo FPV has been divided in three piloting modes.
+					The first one corresponds to the well-known flying mode currently used for
+					Mambo, which is based in an horizontal stabilisation (performed via the
+					vertical camera and the acceleration information) and a vertical acceleration
+					(by means of the ultrasound, the barometer and the vertical accelerometer) in
+					order for the drone to stay in fixed point position when no piloting commands
+					are sent by the user.
+				</enum>
+				<enum name="medium">
+					The second piloting mode consists of deactivating the horizontal stabilisation.
+					Thus, in this flying mode, when no piloting command is received, the drone will
+					try to stay at 0° tilt angle instead of responding to a 0 m/s horizontal speed
+					reference. This behaviour will result in a slight horizontal drift.
+				</enum>
+				<enum name="difficult">
+					The third piloting mode also adds the vertical stabilisation deactivation and,
+					therefore, a slight vertical drift. When flying in the third mode, a closed
+					loop height control is no longer performed in order for the drone to keep a
+					certain height and vertical speed. Instead, the vertical command coming from
+					the user will directly generate an open loop acceleration command.
+				</enum>
 			</arg>
 		</cmd>
 	</myclass>
@@ -376,10 +446,43 @@
 				title="Banked Turn mode"
 				desc="Banked Turn mode.\n
 				If banked turn mode is enabled, the drone will use yaw values from the piloting command to infer with roll and pitch on the drone when its horizontal speed is not null."
-				support="none"
+				support="090b:3.0.6"
 				triggered="by [SetBankedTurnMode](#2-8-2)."/>
 			<arg name="state" type="u8">
 				1 if enabled, 0 if disabled
+			</arg>
+		</cmd>
+		<cmd name="MaxThrottleChanged" id="3">
+			Event informing about the max throttle.
+			<arg name="max" type="float">
+				Max throttle, between 0 and 1.
+			</arg>
+		</cmd>
+		<cmd name="PreferredPilotingModeChanged" id="4">
+			Event informing about the preferred piloting mode.
+			<arg name="mode" type="enum">
+				<enum name="easy">
+					The flight envelope of Mambo FPV has been divided in three piloting modes.
+					The first one corresponds to the well-known flying mode currently used for
+					Mambo, which is based in an horizontal stabilisation (performed via the
+					vertical camera and the acceleration information) and a vertical acceleration
+					(by means of the ultrasound, the barometer and the vertical accelerometer) in
+					order for the drone to stay in fixed point position when no piloting commands
+					are sent by the user.
+				</enum>
+				<enum name="medium">
+					The second piloting mode consists of deactivating the horizontal stabilisation.
+					Thus, in this flying mode, when no piloting command is received, the drone will
+					try to stay at 0° tilt angle instead of responding to a 0 m/s horizontal speed
+					reference. This behaviour will result in a slight horizontal drift.
+				</enum>
+				<enum name="difficult">
+					The third piloting mode also adds the vertical stabilisation deactivation and,
+					therefore, a slight vertical drift. When flying in the third mode, a closed
+					loop height control is no longer performed in order for the drone to keep a
+					certain height and vertical speed. Instead, the vertical command coming from
+					the user will directly generate an open loop acceleration command.
+				</enum>
 			</arg>
 		</cmd>
 	</myclass>
@@ -732,6 +835,292 @@
 			</arg>
 			<arg name="ts" type="i16">
 				Time elapsed since last data send (ms).
+			</arg>
+		</cmd>
+		<cmd name="DroneSpeed" id="1" buffer="NON_ACK">
+			Event informing about the estimated drone speed in horizontal frame.
+			It is similar to NED frame but with drone heading.
+			Down speed is positive when the drone is going down.
+			Speed is in m/s.
+			<arg name="speed_x" type="float">
+				Speed on the x axis (when drone moves forward, speed is > 0).
+			</arg>
+			<arg name="speed_y" type="float">
+				Speed on the y axis (when drone moves right, speed is > 0).
+			</arg>
+			<arg name="speed_z" type="float">
+				Speed on the z axis (when drone moves down, speed is > 0).
+			</arg>
+			<arg name="ts" type="u16">
+				Acquisition timestamp (ms).
+			</arg>
+		</cmd>
+		<cmd name="DroneAltitude" id="2" buffer="NON_ACK">
+			Event informing about the estimated altitude above takeoff level.
+			<arg name="altitude" type="float">
+				Altitude in meters.
+			</arg>
+			<arg name="ts" type="u16">
+				Acquisition timestamp (ms).
+			</arg>
+		</cmd>
+		<cmd name="DroneQuaternion" id="4" buffer="NON_ACK">
+			Event informing about the estimated quaternion.
+			They represent the rotation from the NED frame (determined at drone startup) to the estimated drone body frame.
+			Its elements are between -1 and 1.
+			<arg name="q_w" type="float">
+				Element w.
+			</arg>
+			<arg name="q_x" type="float">
+				Element x.
+			</arg>
+			<arg name="q_y" type="float">
+				Element y.
+			</arg>
+			<arg name="q_z" type="float">
+				Element z.
+			</arg>
+			<arg name="ts" type="u16">
+				Acquisition timestamp (ms).
+			</arg>
+		</cmd>
+	</myclass>
+	<myclass name="MinicamState" id="19">
+		Minicam related events.
+		<cmd name="PowerModeChanged" id="0">
+			Event informing about the minicam power mode.
+			<arg name="power_mode" type="enum">
+				Power mode of the camera.
+				<enum name="low">
+					Low power: most hardware is powered off, wake up via USB resume.
+
+					Used when charging.
+				</enum>
+				<enum name="medium">
+					Medium power: video hardware is powered off.
+
+					Used when drone is not flying during more than 3 minutes.
+					Note that it can still stream the SD content.
+				</enum>
+				<enum name="normal">
+					Normal power: all features are available.
+
+					Used when flying.
+				</enum>
+			</arg>
+		</cmd>
+		<cmd name="ProductSerialChanged" id="1">
+			Event informing about the minicam product serial number.
+			<arg name="serial_number" type="string">
+				Serial number.
+			</arg>
+		</cmd>
+		<cmd name="StateChanged" id="2">
+			Event informing about the state of the camera.
+			<arg name="state" type="enum">
+				State of the camera.
+				<enum name="unplugged">
+					Minicam is unplugged.
+				</enum>
+				<enum name="plugged">
+					Minicam is plugged, but not ready.
+				</enum>
+				<enum name="ready">
+					Minicam is ready.
+				</enum>
+			</arg>
+		</cmd>
+		<cmd name="VersionChanged" id="3">
+			Get the accessory Version.
+			<arg name="software" type="string">
+				Accessory software version.
+			</arg>
+			<arg name="hardware" type="string">
+				Accessory hardware version.
+			</arg>
+		</cmd>
+		<cmd name="PictureChanged" id="4">
+			Event informing that the picture has been taken.
+			<arg name="state" type="enum">
+				State of device picture recording.
+				<enum name="ready">
+					Picture recording is ready.
+				</enum>
+				<enum name="busy">
+					Picture recording is busy.
+				</enum>
+				<enum name="not_available">
+					Picture recording is not available.
+				</enum>
+			</arg>
+			<arg name="result" type="enum">
+				Result of device picture recording.
+				<enum name="success">
+					Success.
+				</enum>
+				<enum name="full_device">
+					Device is full.
+				</enum>
+				<enum name="continuous_shooting">
+					Continuous shooting is already running.
+				</enum>
+				<enum name="full_queue">
+					Over snapshot max queue size.
+				</enum>
+				<enum name="error">
+					Couldn't take picture.
+				</enum>
+				<enum name="no_sd">
+					SD card doesn't exist.
+				</enum>
+				<enum name="sd_bad_format">
+					SD card format error.
+				</enum>
+				<enum name="sd_formatting">
+					SD card is formatting.
+				</enum>
+			</arg>
+		</cmd>
+		<cmd name="VideoStateChanged" id="5">
+			Event informing about the video recording state.
+			<arg name="state" type="enum">
+				State of device video recording.
+				<enum name="stopped">
+					Video is stopped.
+				</enum>
+				<enum name="started">
+					Video is started.
+				</enum>
+				<enum name="notAvailable">
+					The video recording is not available.
+				</enum>
+			</arg>
+			<arg name="error" type="enum">
+				Error to explain the state.
+				<enum name="ok">
+					No Error.
+				</enum>
+				<enum name="unknown">
+					Unknown generic error.
+				</enum>
+				<enum name="camera_ko">
+					Video camera is out of order.
+				</enum>
+				<enum name="memoryFull">
+					Memory full ; cannot save one additional video.
+				</enum>
+				<enum name="lowBattery">
+					Battery is too low to start/keep recording.
+				</enum>
+				<enum name="no_sd">
+					SD card doesn't exist.
+				</enum>
+			</arg>
+		</cmd>
+		<cmd name="MassStorageFormatChanged" id="6" content="NOTIFICATION">
+			Event informing that the mass storage has been formatted.
+			<arg name="state" type="u8">
+				1 if Mass Storage has been formatted, 0 otherwise.
+			</arg>
+		</cmd>
+	</myclass>
+	<myclass name="VideoSettings" id="20">
+		Video settings.
+		<cmd name="Autorecord" id="0">
+			Set video automatic recording state.
+			<arg name="enable" type="u8">
+				0: disabled
+				1: enabled
+			</arg>
+		</cmd>
+		<cmd name="ElectricFrequency" id="1">
+			Set the electric frequency (Anti-flickering).
+			<arg name="frequency" type="enum">
+				Type of the electric frequency.
+				<enum name="fifty_hertz">
+					Electric frequency of the country is 50hz.
+				</enum>
+				<enum name="sixty_hertz">
+					Electric frequency of the country is 60hz.
+				</enum>
+			</arg>
+		</cmd>
+		<cmd name="VideoResolution" id="2">
+			Set video streaming and recording resolution.
+			<arg name="type" type="enum">
+				Video resolution type.
+				<enum name="vga">
+					16/9 VGA streaming (640 x 360).
+				</enum>
+				<enum name="hd">
+					HD streaming (1280 x 720).
+				</enum>
+			</arg>
+		</cmd>
+	</myclass>
+	<myclass name="VideoSettingsState" id="21">
+		Video settings state.
+		<cmd name="AutorecordChanged" id="0">
+			Event informing about the video automatic recording status.
+			<arg name="enabled" type="u8">
+				0: disabled
+				1: enabled
+			</arg>
+		</cmd>
+		<cmd name="ElectricFrequencyChanged" id="1">
+			Event informing about the electric frequency (Anti-flickering).
+			<arg name="frequency" type="enum">
+				Type of the electric frequency.
+				<enum name="fifty_hertz">
+					Electric frequency of the country is 50hz.
+				</enum>
+				<enum name="sixty_hertz">
+					Electric frequency of the country is 60hz.
+				</enum>
+			</arg>
+		</cmd>
+		<cmd name="VideoResolutionChanged" id="2">
+			Event informing about the streaming resolution.
+			<arg name="type" type="enum">
+				Video resolution type.
+				<enum name="vga">
+					16/9 VGA streaming (640 x 360).
+				</enum>
+				<enum name="hd">
+					HD streaming (1280 x 720).
+				</enum>
+			</arg>
+		</cmd>
+	</myclass>
+	<myclass name="Minicam" id="24">
+		Minicam related commands.
+		<cmd name="Picture" id="0">
+			Take picture.
+		</cmd>
+		<cmd name="Video" id="1">
+			Start/Stop video recording.
+			<arg name="record" type="enum">
+				Command to record video
+				<enum name="stop">
+					Stop the video recording.
+				</enum>
+				<enum name="start">
+					Start the video recording.
+				</enum>
+			</arg>
+		</cmd>
+		<cmd name="MassStorageFormat" id="2">
+			Format mass storage.
+		</cmd>
+	</myclass>
+	<myclass name="RemoteControllerState" id="25">
+		State changes related to the remote controller.
+		<cmd name="ConnectionChanged" id="0">
+			State of the connection to the remote controller changed.
+			<arg name="state" type="u8">
+				New connection state.
+				0=disconnected
+				1=connected
 			</arg>
 		</cmd>
 	</myclass>

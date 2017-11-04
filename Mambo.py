@@ -67,6 +67,20 @@ class MamboSensors:
         self.claw_id = 0
         self.claw_state = None
 
+        # new SDK sends speed, altitude, and quaternions
+        self.speed_x = 0
+        self.speed_y = 0
+        self.speed_z = 0
+        self.speed_ts = 0
+
+        self.altitude = 0
+        self.altitude_ts = 0
+
+        self.quaternion_w = 0
+        self.quaternion_x = 0
+        self.quaternion_y = 0
+        self.quaternion_z = 0
+        self.quaternion_ts = 0
 
     def update(self, name, value, sensor_enum):
         """
@@ -98,6 +112,28 @@ class MamboSensors:
             self.gun_id = value
         elif (name == "GunState_state"):
             self.gun_state = value
+        elif (name == "DroneSpeed_speed_x"):
+            self.speed_x = value
+        elif (name == "DroneSpeed_speed_y"):
+            self.speed_y = value
+        elif (name == "DroneSpeed_speed_z"):
+            self.speed_z = value
+        elif (name == "DroneSpeed_ts"):
+            self.speed_ts = value
+        elif (name == "DroneAltitude_altitude"):
+            self.altitude = value
+        elif (name == "DroneAltitude_altitude_ts"):
+            self.altitude_ts = value
+        elif (name == "DroneQuaternion_q_w"):
+            self.quaternion_w = value
+        elif (name == "DroneQuaternion_q_x"):
+            self.quaternion_x = value
+        elif (name == "DroneQuaternion_q_y"):
+            self.quaternion_y = value
+        elif (name == "DroneQuaternion_q_z"):
+            self.quaternion_z = value
+        elif (name == "DroneQuaternion_tz"):
+            self.quaternion_ts = value
         else:
             #print "new sensor - add me to the struct but saving in the dict for now"
             self.unknown_sensors[name] = value
@@ -110,6 +146,10 @@ class MamboSensors:
         """
         my_str = "mambo state: battery %d, " % self.battery
         my_str += "flying state is %s, " % self.flying_state
+        my_str += "speed (x, y, z) and ts is (%f, %f, %f) at %f " % (self.speed_x, self.speed_y, self.speed_z, self.speed_ts)
+        my_str += "altitude (m) %f and ts is %f " % (self.altitude, self.altitude_ts)
+        my_str += "quaternion (w, x, y, z) and ts is (%f, %f, %f, %f) at %f " % (
+            self.quaternion_w, self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_ts)
         my_str += "gun id: %d, state %s, " % (self.gun_id, self.gun_state)
         my_str += "claw id: %d, state %s, " % (self.claw_id, self.claw_state)
         my_str += "unknown sensors: %s," % self.unknown_sensors
@@ -438,12 +478,12 @@ class Mambo:
         :param data: BLE packet of sensor data
         :return:
         """
-        #print "updating sensors with "
+        print "updating sensors with "
         header_tuple = struct.unpack_from("<BBBBBB", data)
-        #print header_tuple
+        print header_tuple
         (names, data_sizes) = self._parse_sensor_tuple(header_tuple)
-        #print "name of sensor is %s" % names
-        #print "data size is %s" % data_sizes
+        print "name of sensor is %s" % names
+        print "data size is %s" % data_sizes
 
         if names is not None:
             for idx, name in enumerate(names):
@@ -949,6 +989,11 @@ class Mambo:
 
         :return: True if the command was sent and False otherwise
         """
+        if (direction not in ("front", "back", "right", "left")):
+            print "Error: %s is not a valid direction.  Must be one of %s" % direction, "front, back, right, or left"
+            print "Ignoring command and returning"
+            return
+
         (command_tuple, enum_tuple) = self._get_command_tuple_with_enum("Animations", "Flip", direction)
         #print command_tuple
         #print enum_tuple

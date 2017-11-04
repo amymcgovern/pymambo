@@ -722,7 +722,7 @@
 			<comment
 				title="Mission item executed"
 				desc="Mission item has been executed."
-				support="none"
+				support="090c:4.2.0;090e:1.4.0"
 				triggered="when a mission item has been executed during a flight plan."/>
 			<arg name="idx" type="u32">
 				Index of the mission item. This is the place of the mission item in the list of the items of the mission.
@@ -774,7 +774,11 @@
 			</arg>
 		</cmd>
 		<cmd name="PitotCalibration" id="1">
-			Sent when a calibration of the pitot is asked or is aborted
+			<comment
+				title="Start/Abort Pitot calibration"
+				desc="Start or abort Pitot tube calibration process.\n"
+				support="090e:1.1.0"
+				result="The pitot calibration process is started or aborted. Then, event [PitotCalibrationStateChanged](#0-14-4) is triggered with the current calibration state."/>
 			<arg name="calibrate" type="u8">
 				1 if the calibration should be started, 0 if it should be aborted
 			</arg>
@@ -990,7 +994,7 @@
 				desc="FlightPlan speed clamping.\n
 				Sent when a speed specified in the FlightPlan file is considered too high by the drone.\n\n
 				**This event is a notification, you can't retrieve it in the cache of the device controller.**"
-				support="0901:2.0.29;090c;090e"
+				support="none"
 				triggered="on an speed related clamping after a [StartFlightPlan](#0-11-0)."/>
 		</cmd>
 	</myclass>
@@ -1592,7 +1596,7 @@
 				desc="This command will request a factory reset from the
 				prodcut. *The factory reset procedure implies an
 				automatic reboot*, which will be done immediately after
-				recieving this command."
+				receiving this command."
 				result="The product will reboot, all settings will be
 				reset to their default values. All data on the product
 				will also be erased."/>
