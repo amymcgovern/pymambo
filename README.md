@@ -13,11 +13,16 @@ This code was developed and tested on a Parrot Mambo (regular Mambo, without the
 You will need python 2.7, pybluez, and untangle.  All of these are available for the Raspberry Pi 3.  To install these do the following:
 
 ```
-sudo apt-get update
 sudo apt-get install bluetooth
 sudo apt-get install bluez
 sudo apt-get install python-bluez
 pip install untangle
+```
+
+It is possible you need to install bluepy (if it isn't already there).  These commands should do it:
+```
+sudo apt-get install python-pip libglib2.0-dev
+sudo pip install bluepysudo apt-get update
 ```
 
 To install the pymambo code, download or clone the repository.
