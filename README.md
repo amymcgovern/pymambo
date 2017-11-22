@@ -3,6 +3,8 @@ Python interface for Parrot Mambo
 
 This interface was developed to teach kids (K-12) STEM concepts (programming, math, and more) by having them program a drone to fly autonomously.  Anyone can use it who is interested in autonomous drone programming!  
 
+Note: I have a wifi interface for the Mambo FPV that will be released by December 2017!
+
 ## Requirements
 
 ### Hardware
