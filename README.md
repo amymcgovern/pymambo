@@ -99,3 +99,7 @@ This is a work in progress.  Planned extensions include:
 * 10/6/2017: General BLE stability improvements with the specific goal of flying multiple mambos at once.  Now if BLE disconnects, it catches that event and re-connects.  
 * 10/6/2017: Multi-mambo flight is now possible so long as you control each one in a separate python file (this seems to be a limitation within bluepy). 
 * 11/3/2017: Added MamboVision code that correctly connects and grabs images from the FPV camera but the Raspberry Pi can't handle the 30 FPS so the code is not finished.  Also updated the states that are parsed via BLE.
+
+## Programming and using your drones responsibly
+
+It is your job to program and use your drones responsibly!  We are not responsible for any losses or damages of your drones or injuries.  Please fly safely and obey all laws.
