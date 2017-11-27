@@ -1,10 +1,10 @@
+# New package
+As of 11/26/2017, I have released a major new package that can use wifi and BLE to control the Mambo and can also be used for a Bebop 2.  Please look at [pyparrot](https://github.com/amymcgovern/pyparrot)
+
 # pymambo
 Python interface for Parrot Mambo
 
 This interface was developed to teach kids (K-12) STEM concepts (programming, math, and more) by having them program a drone to fly autonomously.  Anyone can use it who is interested in autonomous drone programming!  
-
-# New package
-As of 11/26/2017, I have released a major new package that can use wifi and BLE to control the Mambo and can also be used for a Bebop 2.  Please look at [pyparrot](https://github.com/amymcgovern/pyparrot)
 
 ## Requirements
 
