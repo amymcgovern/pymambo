@@ -3,7 +3,8 @@ Python interface for Parrot Mambo
 
 This interface was developed to teach kids (K-12) STEM concepts (programming, math, and more) by having them program a drone to fly autonomously.  Anyone can use it who is interested in autonomous drone programming!  
 
-Note: I have a wifi interface for the Mambo FPV that will be released by December 2017!
+# New package
+As of 11/26/2017, I have released a major new package that can use wifi and BLE to control the Mambo and can also be used for a Bebop 2.  Please look at [pyparrot](https://github.com/amymcgovern/pyparrot)
 
 ## Requirements
 
@@ -99,6 +100,7 @@ This is a work in progress.  Planned extensions include:
 * 10/6/2017: General BLE stability improvements with the specific goal of flying multiple mambos at once.  Now if BLE disconnects, it catches that event and re-connects.  
 * 10/6/2017: Multi-mambo flight is now possible so long as you control each one in a separate python file (this seems to be a limitation within bluepy). 
 * 11/3/2017: Added MamboVision code that correctly connects and grabs images from the FPV camera but the Raspberry Pi can't handle the 30 FPS so the code is not finished.  Also updated the states that are parsed via BLE.
+* 11/26/2017: All further development will happen on the [pyparrot](https://github.com/amymcgovern/pyparrot) package.
 
 ## Programming and using your drones responsibly
 
