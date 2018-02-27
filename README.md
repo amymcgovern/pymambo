@@ -1,4 +1,4 @@
-# New package
+# This repository has been moved to a new one!  Do not use pymambo.  Use pyparrot instead!
 As of 11/26/2017, I have released a major new package that can use wifi and BLE to control the Mambo and can also be used for a Bebop 2.  Please look at [pyparrot](https://github.com/amymcgovern/pyparrot)
 
 # pymambo
